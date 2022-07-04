@@ -1,292 +1,384 @@
 '''
-Importing libraries
+*************************************************************
+Mascarenhas Alexandre
+Experimental Design in Computer Science 2022/1 University of Tsukuba
+Report 2
+SKATEBOARDING STANCE AND HANDEDNESS: A BRIEF ANALYSIS OF RELATIONSHIP, PROPORTIONS AND INFLUENCES
+Professor: Claus Aranha
+*************************************************************
 '''
-import math
+#libs
+from matplotlib.font_manager import FontProperties
+from pandas.core.algorithms import value_counts
 import pandas as pd
-import matplotlib.pyplot as plt
-from datetime import datetime
-from datetime import date
 import numpy as np
-import sys
-from matplotlib.dates import DateFormatter
-import matplotlib.dates as mdates
-import os
-from pathlib import Path
-import datetime
-import calendar
-from scipy.stats import linregress
-
-def findDay(test):
-    born = datetime.datetime.strptime(test, '%Y-%m-%d').weekday()
-    return (calendar.day_name[born])
-
-
-# Date time conversion registration
-from pandas.plotting import register_matplotlib_converters
-register_matplotlib_converters()
+import matplotlib.pyplot as plt
+from scipy.stats.distributions import chi2
+from scipy.stats.distributions import ncx2
+import statsmodels.stats.power as smp
+import scipy.stats as st
 pd.set_option('mode.chained_assignment', None)
-
-if(os.path.isdir("./barGraphs") == False):os.mkdir("./barGraphs")
-if(os.path.isdir("./lineGraphs") == False):os.mkdir("./lineGraphs")
-if(os.path.isdir("./scatterGraphs") == False):os.mkdir("./scatterGraphs")
-
-print ("*************************************************************")
-print ("Mascarenhas Alexandre")
-print ("Experimental Design in Computer Science 2022/1\nUniversity of Tsukuba")
-print ("Report 1\n")
-print ("Relation between Daily Number of Cyclists and Daily Average")
-print ("temperature on the Faria Limas's cycle path in the city of\nSao Paulo, Brazil")
-print ("*************************************************************\n")
-
-'''
-Plota linha com selecao de dias da semana
-
-'''
-
-plt.rcParams['figure.figsize'] = (12, 6)
-
-'''
-importing datasets
-'''
+plt.style.use('dark_background')
+plt.rcParams['axes.facecolor'] = 'cornsilk'
+plt.rcParams['savefig.facecolor'] = 'black'
+plt.rcParams['text.color'] = 'black'
 
 
-naruto = pd.read_csv("faria-lima.csv", delimiter = ',', usecols=['Date', 'Pinheiros']) #import dataset with number of cyclists
-bikers = naruto[:-834] #01 jan 2020
-#print (bikers)
+share_url = "https://docs.google.com/spreadsheets/d/1A9necJ2qDoMa9k6l-eG8QP2orVHBr4P6OypA8Xy_cKA/edit#gid=2089872127"
+url = share_url.replace('/edit#gid=', '/export?format=csv&gid=')
+data = pd.read_csv(url)
 
-luffy = pd.read_csv("temperature-sp.csv", delimiter = '\t', usecols=['Data Medicao','TEMPERATURA MEDIA COMPENSADA, DIARIA(°C)'], parse_dates=['Data Medicao']) #import dataset with temperature
-luffy.set_index('Data Medicao', inplace = True)
-luffy = luffy.rename(columns={"TEMPERATURA MEDIA COMPENSADA, DIARIA(°C)": "Temperature"})
-luffy = luffy.rename(columns={"Data Medicao": "Date"})
-luffy.drop("2016-03-10", inplace = True)
-luffy.drop("2017-11-15", inplace = True)
-luffy.drop(luffy.index[0:17], inplace = True)
+def barChart(leftPie, rightPie, mode):
+    # set width of bar
+    barWidth = 0.20
+    fig = plt.subplots(figsize =(12, 8))
 
-df = luffy[:'2020-01-01']
-df['Pinheiros'] = bikers['Pinheiros'].values
-#print (df[df.Temperature < 20])
+    # set height of bar
+    regular = [leftPie[0], rightPie[0]]
+    goofy = [leftPie[1], rightPie[1]]
 
-'''
-Variables to configure the day of the week and number of datas
-'''
-print ("\nPlease enter the dates (from 2016-01-18 and 2020-01-01):")
-startDate = input("Initial date (YYYY-mm-dd): ")
-endDate = input("Final date: (YYYY-mm-dd): ")
-data = df[startDate:endDate]
+    # Set position of bar on X axis
+    br1 = np.arange(len(regular))
+    br2 = [x + 1.1*barWidth for x in br1]
 
 
-print ("\n\nPlease enter the cut-off temperature cT in C [values will be <= cT ]:")
-cT = float(input("cT (0 for no filtering): "))
-if(cT > 0):data = data[data.Temperature < cT]
+    # Make the plot
+    plt.bar(br1, regular, color ='tab:red', width = barWidth,
+            edgecolor ='grey', label ='Regular')
+    plt.bar(br2, goofy, color ='tab:blue', width = barWidth,
+            edgecolor ='grey', label ='Goofy')
 
-print ("\n\nEnter the number of day of the week:")
-print ("   * 1 -> Mon")
-print ("   * 2 -> Tue")
-print ("   * 3 -> Wed")
-print ("   * 4 -> Thu")
-print ("   * 5 -> Fri")
-print ("   * 6 -> Sat")
-print ("   * 7 -> Sun")
-print ("   * 0 -> Everyday")
+    plt.axvline((br1[1]+br2[0])/2, color='black', linestyle='--', linewidth=2)
 
-dayWeek = int(input("Day: "))
-dayWeekStr = ["Everyday","Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-'''
-print ("\n\nEnter the type of graph:")
+    plt.text(br1[0]-barWidth/10, regular[0]+0.5, f"{regular[0]:.0f}", fontsize=14, weight="bold", c='black')
+    plt.text(br2[0]-barWidth/10, goofy[0]+0.5, f"{goofy[0]:.0f}", fontsize=14, weight="bold", c='black')
+    plt.text(br1[1]-barWidth/10, regular[1]+0.5, f"{regular[1]:.0f}", fontsize=14, weight="bold", c='black')
+    plt.text(br2[1]-barWidth/10, goofy[1]+0.5, f"{goofy[1]:.0f}", fontsize=14, weight="bold", c='black')
 
+    # Adding Xticks
+    #plt.xlabel('Handedness', fontweight ='bold', fontsize = 22)
+    #plt.grid(True)
+    plt.grid(color='gray', linestyle='dashed', linewidth=.5)
+    plt.title(f"Relation between Stance and Handedness in {mode} population", color='cornsilk', fontsize=20)
+    plt.ylabel('Number of people', fontsize = 22)
+    plt.xticks([r+0.55*barWidth for r in br1], ['Left-handed', 'Right-handed'], fontsize=22, color="cornsilk")
+    plt.yticks(fontsize=15, color="cornsilk")
 
-print ("   * 1 -> Line     (Number of Cyclist and Temperature vs Date)")
-print ("   * 2 -> Bar      (Number of Cyclists vs Temperature)")
-print ("   * 3 -> Scatter  (Number of Cyclists vs Temperature)\n")
-typeGraph = int(input("Type: "))
-'''
-
-dayWeekInt = 0
-dayWeekInit = findDay(startDate)
-for i in dayWeekStr:
-	if(dayWeekInit == i):
-		break;
-	else:
-		dayWeekInt += 1
-
-checkDayWeek = dayWeekInt - dayWeek
-if (checkDayWeek > 0):
-	n = checkDayWeek-1
-else:
-	n = 6+checkDayWeek
+    for text in plt.legend().get_texts():
+        text.set_color('black')
+        text.set_fontsize(30)
 
 
-if dayWeek != 0:
-
-	nMed = 6
-	newDate = []
-	newTemp = []
-	newBikers = []
-	m = 0
-
-	for i in data.index:
-		if(n == nMed):
-			newDate.append(i)
-			newTemp.append(data.iloc[m, 0])
-			newBikers.append(data.iloc[m, 1])
-			n = 0
-		else:
-			n += 1
-
-		m += 1
-
-	newData = pd.DataFrame()
-	newData['Date'] = newDate
-	newData['Temperature'] = newTemp
-	newData['Pinheiros'] = newBikers
-	newData.set_index('Date', inplace = True)
-	print (newData)
-
-	x = newData['Temperature']
-	y = newData['Pinheiros']
-
-	a = 0.05
-	cI = 1 - a/2
-
-	xy = x*y
-	x2 = x*x
-	y2 = y*y
-	Sx = x.sum()
-	Sy = y.sum()
-	N = int(newData.size/2)
-
-	nom = N*((xy).sum()) - (Sx*Sy)
-	den = math.sqrt( (N*((x2).sum()) - (Sx*Sx)) * (N*((y2).sum()) - (Sy*Sy)) )
-	r =  nom/den
-
-	zR = 0.5*math.log( (1+r)/(1-r) )
-	zA = 0.5*math.log( (1+cI)/(1-cI) )
-	zL = zR - (zA)*(math.sqrt(1/(N-3)))
-	zU = zR + (zA)*(math.sqrt(1/(N-3)))
-	rL = (math.exp(2*zL) - 1)/(math.exp(2*zL) + 1)
-	rU = (math.exp(2*zU) - 1)/(math.exp(2*zU) + 1)
+    plt.savefig(f"bar_{mode}.png")
+    plt.show()
 
 
-	fig1, ax1 = plt.subplots()
-	plt.grid(True)
-	ax1.set_title(f'Daily Temperature and Daily Number of Cyclists\nevery {dayWeekStr[dayWeek]} between {startDate} and {endDate}\nSample size (n): {N}   Correlation coefficient (r): {r:.3f}   Confidence Interval (95%): [{rL:.3f}:{rU:.3f}]')
-	ax1.set_xlabel("Temperature (C)")
-	ax1.set_ylabel("Number of Cyclists (N)")
-	ax1.tick_params(axis='x', labelrotation=45)
-	ax1.scatter(newData['Temperature'].values, newData['Pinheiros'].values, label="Number of Cyclists towards Pinheiros (N)")
-	ax1.plot(x, linregress(x, y)[1] + linregress(x, y)[0]*x, "g" )
-	fig1.savefig(f'./scatterGraphs/Bikers-Temp_x_Date-'+dayWeekStr[dayWeek]+'-'+startDate+'-'+endDate+'-scatter.png', format='png')
+#Yates’ continuity correction in values Freq
+def yatesCorrection(e):
+    x = e.copy()
+
+    x.at['Left', 'Regular'] += 0.5
+    x.at['Right', 'Regular'] = x.at['Total', 'Regular'] - x.at['Left', 'Regular']
+    x.at['Right', 'Goofy'] = x.at['Right', 'Total'] - x.at['Right', 'Regular']
+    x.at['Left', 'Goofy'] = x.at['Left', 'Total'] - x.at['Left', 'Regular']
+
+    return x
 
 
-	fig2, ax2 = plt.subplots()
-	plt.grid(True)
-	ax2.set_title(f'Daily Temperature and Daily Number of Cyclists\nevery {dayWeekStr[dayWeek]} between {startDate} and {endDate}\nSample size (n): {N}   Correlation coefficient (r): {r:.3f}   Confidence Interval (95%): [{rL:.3f}:{rU:.3f}]')
-	ax2.set_xlabel("Temperature (C)")
-	ax2.set_ylabel("Number of Cyclists (N)")
-	ax2.tick_params(axis='x', labelrotation=45)
-	ax2.bar(newData['Temperature'].values, newData['Pinheiros'].values, label="Number of Cyclists towards Pinheiros (N)")
-	fig2.savefig(f'./barGraphs/Bikers-Temp_x_Date-'+dayWeekStr[dayWeek]+'-'+startDate+'-'+endDate+'-bar.png', format='png')
+def funcL(val):
+    return f'{val:.1f}%'
+    #return f'{val:.1f}%'
+
+def funcR(val):
+    #return f'{val / 100 * int(right.size/2):.1f}\n\n{val:.1f}%'
+    return f'{val:.1f}%'
+
+def pieChart(leftPie, rightPie, mode):
+    # Wedge properties
+    wp = { 'linewidth' : 2, 'edgecolor' : "black"}
+    # Creating color parameters
+    colorsL = ( "tab:red", "tab:blue")
+    colorsR = ( "tab:red", "tab:blue")
+
+    fig, (ax1, ax2) = plt.subplots(ncols=2, nrows=1, figsize=(15, 7))
+
+    labels = ['Regular', 'Goofy']
+    wedges, texts, autotexts = ax1.pie(leftPie,
+                                    autopct = funcL,
+                                    shadow = True,
+                                    colors = colorsL,
+                                    startangle = 0,
+                                    wedgeprops = wp,
+                                    textprops = dict(color ="black", fontsize=28))
+
+    wedges, texts, autotexts = ax2.pie(rightPie,
+                                    autopct = funcR,
+                                    shadow = True,
+                                    colors = colorsR,
+                                    startangle = 0,
+                                    wedgeprops = wp,
+                                    textprops = dict(color ="black", fontsize=28))
+
+    # Adding legend
+    '''
+    ax1.legend(wedges, labels,
+            title ="Stance",
+            loc ="center left",
+            bbox_to_anchor =(-0.17, 0.3, 0.5, 1))
+    '''
+    #plt.title(f"Relation between Stance and Handedness in {mode} population", color='cornsilk', fontsize=20)
+    ax2.legend(wedges, labels,
+            title ="Stance",
+            loc ="center left",
+            fontsize=30,
+            bbox_to_anchor =(-0.6, -0.3, 0.5, 1))
 
 
-	fig3, ax3 = plt.subplots()
-	plt.grid(True)
-	ax3.set_title(f'Daily Temperature and Daily Number of Cyclists\nevery {dayWeekStr[dayWeek]} between {startDate} and {endDate}\nSample size (n): {N}   Correlation coefficient (r): {r:.3f}   Confidence Interval (95%): [{rL:.3f}:{rU:.3f}]')
-	ax3.set_xlabel("Date")
-	ax3.set_ylabel("Number of Cyclists (N)")
-	ax3.tick_params(axis='x', labelrotation=45)
-	ax3.set_xlim(data.index[0], data.index[-1])
-	plot1 = ax3.plot(newData.index, newData['Pinheiros'].values, 'g', label="Number of Cyclists towards Pinheiros (N)")
-	ax4 = ax3.twinx()
-	ax4.set_ylabel("Temperature (C)")
-	plot2 = ax4.plot(newData.index, newData['Temperature'].values, 'r', label="Average Temperature (C)")
-	lns = plot1 + plot2
-	labels = [l.get_label() for l in lns]
-	plt.legend(lns, labels, loc=0)
-	date_form = DateFormatter("%b %y")
-	ax3.xaxis.set_major_formatter(date_form)
-	ax3.xaxis.set_major_locator(mdates.MonthLocator(interval=1))
-	fig3.savefig(f'./lineGraphs/Bikers-Temp_x_Date-'+dayWeekStr[dayWeek]+'-'+startDate+'-'+endDate+'-line.png', format='png')
-	plt.show()
+    ax1.set_title(f"Left-handed", size=25, c="cornsilk")
+    ax2.set_title("Right-handed", size=25, c="cornsilk")
+    plt.tight_layout()
+    plt.savefig(f"pie_{mode}.png")
+    plt.show()
 
-else:
-
-	print (data)
-	x = data['Temperature']
-	y = data['Pinheiros']
-
-	a = 0.05
-	cI = 1 - a/2
-
-	xy = x*y
-	x2 = x*x
-	y2 = y*y
-	Sx = x.sum()
-	Sy = y.sum()
-	N = int(data.size/2)
-
-	nom = N*((xy).sum()) - (Sx*Sy)
-	den = math.sqrt( (N*((x2).sum()) - (Sx*Sx)) * (N*((y2).sum()) - (Sy*Sy)) )
-	r =  nom/den
-
-	zR = 0.5*math.log( (1+r)/(1-r) )
-	zA = 0.5*math.log( (1+cI)/(1-cI) )
-	zL = zR - (zA)*(math.sqrt(1/(N-3)))
-	zU = zR + (zA)*(math.sqrt(1/(N-3)))
-	rL = (math.exp(2*zL) - 1)/(math.exp(2*zL) + 1)
-	rU = (math.exp(2*zU) - 1)/(math.exp(2*zU) + 1)
-
-	fig1, ax1 = plt.subplots()
-	plt.grid(True)
-	ax1.set_title(f'Daily Temperature and Daily Number of Cyclists\neveryday between {startDate} and {endDate}\nSample size (n): {N}   Correlation coefficient (r): {r:.3f}   Confidence Interval (95%): [{rL:.3f}:{rU:.3f}]')
-	ax1.set_xlabel("Temperature (C)")
-	ax1.set_ylabel("Number of Cyclists (N)")
-	ax1.tick_params(axis='x', labelrotation=45)
-	ax1.scatter(data['Temperature'].values, data['Pinheiros'].values, label="Number of Cyclists towards Pinheiros (N)")
-	ax1.plot(x, linregress(x, y)[1] + linregress(x, y)[0]*x, "g" )
-	fig1.savefig(f'./scatterGraphs/Bikers-Temp_x_Date-Everyday-'+startDate+'-'+endDate+'-scatter.png', format='png')
+def chi2Eval(o, e):
+    sum = 0
+    for i in range(e.columns.values.size-1):
+        for j in range(len(e.index)-1):
+            #print(f'E{i}{j}:{valuesFreq.iloc[i][j]:.2f}     O{i}{j}:{values.iloc[i][j]}')
+            diff = ( (e.iloc[i][j] - o.iloc[i][j])**2 ) / e.iloc[i][j]
+            sum += diff
+    return sum
 
 
-	fig2, ax2 = plt.subplots()
-	plt.grid(True)
-	ax2.set_title(f'Daily Temperature and Daily Number of Cyclists\neveryday between {startDate} and {endDate}\nSample size (n): {N}   Correlation coefficient (r): {r:.3f}   Confidence Interval (95%): [{rL:.3f}:{rU:.3f}]')
-	ax2.set_xlabel("Temperature (C)")
-	ax2.set_ylabel("Number of Cyclists (N)")
-	ax2.tick_params(axis='x', labelrotation=45)
-	ax2.bar(data['Temperature'].values, data['Pinheiros'].values, label="Number of Cyclists towards Pinheiros (N)")
-	fig2.savefig(f'./barGraphs/Bikers-Temp_x_Date-Everyday-'+startDate+'-'+endDate+'-bar.png', format='png')
+def residuals(o, e):
+    N = o.iloc[-1][-1]
+    row = [[], []]
+    for i in range(e.columns.values.size-1):
+        for j in range(len(e.index)-1):
+            #print(f'E{i}{j}:{e.iloc[i][j]:.2f}     O{i}{j}:{o.iloc[i][j]}')
+            num = o.iloc[i][j] - e.iloc[i][j]
+            den = e.iloc[i][j] * (1-(o.iloc[i][-1]/N) ) * (1-(o.iloc[-1][j]/N))
+            root = np.sqrt(den)
+            row[i].append(num/root)
+
+    res = pd.DataFrame(row)
+    return res
 
 
-	fig3, ax3 = plt.subplots()
-	plt.grid(True)
-	ax3.set_title(f'Daily Temperature and Daily Number of Cyclists\neveryday between {startDate} and {endDate}\nSample size (n): {N}   Correlation coefficient (r): {r:.3f}   Confidence Interval (95%): [{rL:.3f}:{rU:.3f}]')
-	ax3.set_xlabel("Date")
-	ax3.set_ylabel("Number of Cyclists (N)")
-	ax3.tick_params(axis='x', labelrotation=45)
-	ax3.set_xlim(data.index[0], data.index[-1])
-	plot1 = ax3.plot(data.index, data['Pinheiros'].values, 'g', label="Number of Cyclists towards Pinheiros (N)")
-	ax4 = ax3.twinx()
-	ax4.set_ylabel("Temperature (C)")
-	plot2 = ax4.plot(data.index, data['Temperature'].values, 'r', label="Average Temperature (C)")
-	lns = plot1 + plot2
-	labels = [l.get_label() for l in lns]
-	plt.legend(lns, labels, loc=0)
-	date_form = DateFormatter("%b %y")
-	ax3.xaxis.set_major_formatter(date_form)
-	ax3.xaxis.set_major_locator(mdates.MonthLocator(interval=1))
-	fig3.savefig(f'./lineGraphs/Bikers-Temp_x_Date-Everyday-'+startDate+'-'+endDate+'-line.png', format='png')
-	plt.show()
+def bootstrap(dataO, dataE, n, a, func):
+    bs_chi = np.empty(n)
+    dataE.drop(dataE.index[-1], inplace=True)
+    dataE.set_index([[0, 1]], inplace=True)
+    print(dataE)
+    print(dataE.iloc[:, 0])
+    print(dataE.iloc[:, 1])
+    for i in range(n):
+        bs_sample1 = np.random.choice(dataE.iloc[:, 0], 2)
+        #print(bs_sample1)
+        bs_sample2 = np.random.choice(dataE.iloc[:, 1], 2)
+        #print(bs_sample1)
+        ox = {'Regular':bs_sample1, 'Goofy':bs_sample2}
+        bs_sample = pd.DataFrame(ox)
+        bs_sample.set_index([[0, 1]], inplace=True)
+        #print(bs_sample)
+        bs_chi[i] = func(dataO, bs_sample)
+    return bs_chi
 
-print ("\n*************************************")
-print ("Statistical points\n")
-print (f"Sample size (n): {N}")
-print (f"Correlation coefficient (r): {r:.3f}")
-print (f"Confidence Interval (95%): [{rL:.3f}:{rU:.3f}]")
-print (f"Intercept: {linregress(x, y)[1]:.3f}")
-print (f"Slope: {linregress(x, y)[0]:.3f}")
-print ("*************************************\n")
+def chi_squared(o, e):
+    n = o.iloc[2][2]
+    chisq_value = chi2Eval(o, e)
+    p_value = chi2.sf(chisq_value,1)
+    res = residuals(o, e)
+    phi = np.sqrt(chisq_value/n)
+    chisq_critic = chi2.ppf(1-.5, df=1)
+    power = chi2.cdf(x=chisq_value, df=1)
+    return chisq_value, p_value, phi, power, res
 
-'''
-Finishing the script
-'''
+def risk_ratio(values):
+    a = values.iloc[0][0]
+    b = values.iloc[0][1]
+    c = values.iloc[1][0]
+    d = values.iloc[1][1]
+    n = values.iloc[2][2]
 
-sys.exit()
+    RR = (a/(a+b)) / (c/(c+d))
+    SE_RR = np.sqrt((1/a) - (1/(a+b)) + (1/c) - (1/(c+d)))
+    lb_RR = np.exp(np.log(RR) - 1.96*(SE_RR))
+    ub_RR = np.exp(np.log(RR) + 1.96*(SE_RR))
+
+    return RR, lb_RR, ub_RR
+
+def odds_ratio(values):
+    a = values.iloc[0][0]
+    b = values.iloc[0][1]
+    c = values.iloc[1][0]
+    d = values.iloc[1][1]
+    n = values.iloc[2][2]
+
+    OR = ( (a/c)/(b/d) )
+    SE_OR = np.sqrt((1/a) + (1/b) + (1/c) + (1/d))
+    lb_OR = np.exp(np.log(OR) - 1.96*(SE_OR))
+    ub_OR = np.exp(np.log(OR) + 1.96*(SE_OR))
+
+    return OR, lb_OR, ub_OR
+
+def a_r(values, RR):
+    a = values.iloc[0][0]
+    b = values.iloc[0][1]
+    c = values.iloc[1][0]
+    d = values.iloc[1][1]
+    n = values.iloc[2][2]
+
+    pE = a+b/n
+    AR = (pE*(RR-1)) / (1 + pE*(RR-1))
+    u = 1.96*((a+c)*(c+d)/(a*d - b*c))*( np.sqrt( (a*d*(n-c) + c*c*b) / (n*c*(a+c)*(c+d)) ) )
+    lb_AR = (a*d - b*c)*np.exp(u) / (n*c + (a*d - b*c)*np.exp(u))
+    ub_AR = (a*d - b*c)*np.exp(-u) / (n*c + (a*d - b*c)*np.exp(-u))
+
+    return AR, lb_AR, ub_AR
+
+
+
+def extractDF(df):
+    leftPie = []
+    rightPie = []
+    right_regular = int(df[ (df['handedness'] == 'R') & (df['stance'] == 'R') ].size/2)
+    right_goofy = int(df[ (df['handedness'] == 'R') & (df['stance'] == 'G') ].size/2)
+    left_regular = int(df[ (df['handedness'] == 'L') & (df['stance'] == 'R') ].size/2)
+    left_goofy = int(df[ (df['handedness'] == 'L') & (df['stance'] == 'G') ].size/2)
+    total_regular = right_regular + left_regular
+    total_goofy = right_goofy + left_goofy
+    total_right = right_regular + right_goofy
+    total_left = left_regular + left_goofy
+    total = total_right + total_left
+    left = df[(df['handedness'] == 'L')]
+    left['stance'] = left['stance'].replace(['R'],0)
+    left['stance'] = left['stance'].replace(['G'],1)
+    right = df[(df['handedness'] == 'R')]
+    right['stance'] = right['stance'].replace(['R'],0)
+    right['stance'] = right['stance'].replace(['G'],1)
+    values = pd.DataFrame({'Handedness':['Right', 'Left', 'Total'], 'Regular':[right_regular, left_regular, total_regular], 
+                        'Goofy':[right_goofy, left_goofy, total_goofy],'Total':[total_right, total_left, total]})
+    values.set_index('Handedness', inplace=True)
+
+    valuesFreq = pd.DataFrame({'Handedness':['Right', 'Left', 'Total'], 'Regular':[total_regular*(total_right/total), total_regular*(total_left/total), total_regular],
+                            'Goofy':[total_goofy*(total_right/total), total_goofy*(total_left/total), total_goofy], 'Total':[total_right, total_left, total]})
+    valuesFreq.set_index('Handedness', inplace=True)
+    leftPie.append( (left[(left['stance'] == 0)].size/2) )
+    leftPie.append( (left[(left['stance'] == 1)].size/2) )
+    rightPie.append( ((right[(right['stance'] == 0)].size/2) / int(right.size/2)) * 100)
+    rightPie.append( ((right[(right['stance'] == 1)].size/2) / int(right.size/2)) * 100)
+    leftBar = [left[ (left['stance'] == 0) ].size/2, left[ (left['stance'] == 1) ].size/2] 
+    rightBar = [right[ (right['stance'] == 0) ].size/2, right[ (right['stance'] == 1) ].size/2] 
+
+    return values, valuesFreq, left, right, leftPie, rightPie, leftBar, rightBar
+
+
+
+data = pd.DataFrame.from_records(data.values)
+data.columns = ["datetime", "handedness", "stance", "gender", "praticant"]
+data['handedness'] = data['handedness'].replace(['Right'],'R')
+data['handedness'] = data['handedness'].replace(['Left'],'L')
+data['stance'] =     data['stance'].replace(['Regular'],'R')
+data['stance'] =     data['stance'].replace(['Goofy'],'G')
+data['gender'] =     data['gender'].replace(['Male'],'M')
+data['gender'] =     data['gender'].replace(['Female'],'F')
+data['praticant'] =  data['praticant'].replace(['Yes'],'Y')
+data['praticant'] =  data['praticant'].replace(['No'],'N')
+data.to_csv('data.csv', sep=';')
+print("*************************************************************")
+print("Mascarenhas Alexandre")
+print("Experimental Design in Computer Science 2022/1\nUniversity of Tsukuba")
+print("Report 2\n")
+print("SKATEBOARDING STANCE AND HANDEDNESS: A BRIEF ANALYSIS OF \nRELATIONSHIP, PROPORTIONS AND INFLUENCES\n")
+print("Professor: Claus Aranha")
+print("*************************************************************\n")
+
+# Total
+df = data[['handedness', 'stance']]
+values, valuesFreq, left, right, leftPie, rightPie, leftBar, rightBar = extractDF(df)
+chisq_value, p_value, phi, power, res = chi_squared(values, valuesFreq)
+valuesFreqYates = yatesCorrection(valuesFreq)
+chisq_value_yates, p_value_yates, phi_yates, power_yates, res_yates = chi_squared(values, valuesFreqYates)
+RR, lb_RR, ub_RR = risk_ratio(values)
+OR, lb_OR, ub_OR = odds_ratio(values)
+AR, lb_AR, ub_AR = a_r(values, RR)
+print(f"----------------Total------------------")
+print(values)
+print(valuesFreq)
+print(res)
+print(f"alpha:0.05  | df = 1")
+print(f'Chi² = {chisq_value:.2f} | p-value:{p_value:.2f} | phi:{phi:.2f} | power:{power:.2f}\n')
+print(f"-------Yates---------")
+print(valuesFreqYates)
+print(res_yates)
+print(f"alpha:0.05  | df = 1")
+print(f'Chi² = {chisq_value_yates:.2f} | p-value:{p_value_yates:.2f} | phi:{phi_yates:.2f} | power:{power_yates:.2f}\n')
+print(f"-------Ratios--------")
+print(f'RR:{RR:.2f} CI(95%):[{lb_RR:.2f}, {ub_RR:.2f}]')
+print(f'OR:{OR:.2f} CI(95%):[{lb_OR:.2f}, {ub_OR:.2f}]')
+print(f'AR:{AR:.2f} CI(95%):[{lb_AR:.2f}, {ub_AR:.2f}]')
+print(f"---------------------------------------\n")
+
+# Male
+df_M = data[ (data['gender'] == 'M') ]
+df_M = df_M[['handedness', 'stance']]
+values_M, valuesFreq_M, left_M, right_M, leftPie_M, rightPie_M, leftBar_M, rightBar_M = extractDF(df_M)
+chisq_value_M, p_value_M, phi_M, power_M, res_M = chi_squared(values_M, valuesFreq_M)
+valuesFreqYates_M = yatesCorrection(valuesFreq_M)
+chisq_value_yates_M, p_value_yates_M, phi_yates_M, power_yates_M, res_yates_M = chi_squared(values_M, valuesFreqYates_M)
+RR_M, lb_RR_M, ub_RR_M = risk_ratio(values_M)
+OR_M, lb_OR_M, ub_OR_M = odds_ratio(values_M)
+AR_M, lb_AR_M, ub_AR_M = a_r(values_M, RR_M)
+print(f"----------------Male------------------")
+print(values_M)
+print(valuesFreq_M)
+print(res_M)
+print(f"alpha:0.05  | df = 1")
+print(f'Chi² = {chisq_value_M:.2f} | p-value:{p_value_M:.2f} | phi:{phi_M:.2f} | power:{power_M:.2f}\n')
+print(f"-------Yates---------")
+print(valuesFreqYates_M)
+print(res_yates_M)
+print(f"alpha:0.05  | df = 1")
+print(f'Chi² = {chisq_value_yates_M:.2f} | p-value:{p_value_yates_M:.2f} | phi:{phi_yates_M:.2f} | power:{power_yates_M:.2f}\n')
+print(f"-------Ratios--------")
+print(f'RR:{RR_M:.2f} CI(95%):[{lb_RR_M:.2f}, {ub_RR_M:.2f}]')
+print(f'OR:{OR_M:.2f} CI(95%):[{lb_OR_M:.2f}, {ub_OR_M:.2f}]')
+print(f'AR:{AR_M:.2f} CI(95%):[{lb_AR_M:.2f}, {ub_AR_M:.2f}]')
+print(f"---------------------------------------\n")
+
+# Female
+df_F = data[ (data['gender'] == 'F') ]
+df_F = df_F[['handedness', 'stance']]
+values_F, valuesFreq_F, left_F, right_F, leftPie_F, rightPie_F, leftBar_F, rightBar_F= extractDF(df_F)
+chisq_value_F, p_value_F, phi_F, power_F, res_F = chi_squared(values_F, valuesFreq_F)
+valuesFreqYates_F = yatesCorrection(valuesFreq_F)
+chisq_value_yates_F, p_value_yates_F, phi_yates_F, power_yates_F, res_yates_F = chi_squared(values_F, valuesFreqYates_F)
+RR_F, lb_RR_F, ub_RR_F = risk_ratio(values_F)
+OR_F, lb_OR_F, ub_OR_F = odds_ratio(values_F)
+AR_F, lb_AR_F, ub_AR_F = a_r(values_F, RR_F)
+print(f"---------------Female-----------------")
+print(values_F)
+print(valuesFreq_F)
+print(res_F)
+print(f"alpha:0.05  | df = 1")
+print(f'Chi² = {chisq_value_F:.2f} | p-value:{p_value_F:.2f} | phi:{phi_F:.2f} | power:{power_F:.2f}\n')
+print(f"-------Yates---------")
+print(valuesFreqYates_F)
+print(res_yates_F)
+print(f"alpha:0.05  | df = 1")
+print(f'Chi² = {chisq_value_yates_F:.2f} | p-value:{p_value_yates_F:.2f} | phi:{phi_yates_F:.2f} | power:{power_yates_F:.2f}\n')
+print(f"-------Ratios--------")
+print(f'RR:{RR_F:.2f} CI(95%):[{lb_RR_F:.2f}, {ub_RR_F:.2f}]')
+print(f'OR:{OR_F:.2f} CI(95%):[{lb_OR_F:.2f}, {ub_OR_F:.2f}]')
+print(f'AR:{AR_F:.2f} CI(95%):[{lb_AR_F:.2f}, {ub_AR_F:.2f}]')
+print(f"---------------------------------------\n")
+
+barChart(leftBar, rightBar, 'ALL')
+pieChart(leftPie, rightPie, 'ALL')
+print()
+barChart(leftBar_M, rightBar_M, 'MALE')
+pieChart(leftPie_M, rightPie_M, 'MALE')
+print()
+barChart(leftBar_F, rightBar_F, 'FEMALE')
+pieChart(leftPie_F, rightPie_F, 'FEMALE')
